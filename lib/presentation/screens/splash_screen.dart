@@ -1,11 +1,10 @@
 import 'dart:async';
 
+import 'package:chat_app_secure_programming/providers/auth_provider.dart';
+import 'package:chat_app_secure_programming/services/shared_pref_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
-
-import '../../core/constants/app_constants.dart';
-import '../providers/auth_provider.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 
@@ -27,18 +26,22 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _checkAuthStatus() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-    // Simulate loading time for splash screen
-    await Future.delayed(const Duration(seconds: AppConstants.splashDuration));
-
-    if (authProvider.isAuthenticated) {
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed(HomeScreen.routeName);
-      }
-    } else {
+    
+    final isValid = await authProvider.isTokenValid();
+    
+    if (!isValid) {
+      // Clear all data if token is invalid
+      await SharedPrefService.removeToken();
+      await SharedPrefService.clearUserData();
+      
       if (mounted) {
         Navigator.of(context).pushReplacementNamed(LoginScreen.routeName);
       }
+      return;
+    }
+
+    if (mounted) {
+      Navigator.of(context).pushReplacementNamed(HomeScreen.routeName);
     }
   }
 
@@ -64,7 +67,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
             // App name
             Text(
-              AppConstants.appName,
+              "Secure Chat",
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).primaryColor,

@@ -1,13 +1,12 @@
+import 'package:chat_app_secure_programming/providers/auth_provider.dart';
+import 'package:chat_app_secure_programming/utils/input_validator.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
-import '../../core/constants/app_constants.dart';
-import '../../core/utils/input_validator.dart';
-import '../providers/auth_provider.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
+import 'package:get/get.dart';
 
 class SignupScreen extends StatefulWidget {
   static const String routeName = '/signup';
@@ -51,16 +50,13 @@ class _SignupScreenState extends State<SignupScreen> {
   Future<void> _signUp() async {
     if (_formKey.currentState?.validate() ?? false) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-      await authProvider.signUp(
-        username: _usernameController.text.trim(),
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
-
-      if (authProvider.isAuthenticated && mounted) {
-        Navigator.of(context).pushReplacementNamed(HomeScreen.routeName);
-      }
+      await authProvider.signup(
+        _usernameController.text.trim(),
+        _emailController.text.trim(),
+        _passwordController.text,
+      ).then((onValue){
+        Navigator.of(context).pushReplacementNamed(LoginScreen.routeName);
+      });
     }
   }
 
@@ -90,7 +86,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   // App name
                   Text(
-                    AppConstants.appName,
+                    "Secure Chat",
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
@@ -169,7 +165,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   // Sign up button
                   CustomButton(
                     text: 'Sign Up',
-                    isLoading: authProvider.status == AuthStatus.loading,
+                    isLoading: authProvider.signupLoading,
                     onPressed: _signUp,
                   ),
 
@@ -197,20 +193,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                     ],
                   ),
-
-                  // Error message
-                  if (authProvider.errorMessage.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16.0),
-                      child: Text(
-                        authProvider.errorMessage,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                          fontSize: 14,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
+                  
                 ],
               ),
             ),

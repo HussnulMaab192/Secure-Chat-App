@@ -1,9 +1,7 @@
+import 'package:chat_app_secure_programming/providers/auth_provider.dart';
+import 'package:chat_app_secure_programming/utils/input_validator.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
-import '../../core/constants/app_constants.dart';
-import '../../core/utils/input_validator.dart';
-import '../providers/auth_provider.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
 import 'home_screen.dart';
@@ -38,19 +36,18 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    // if (_formKey.currentState?.validate() ?? false) {
-    //   final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (_formKey.currentState?.validate() ?? false) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-    //   await authProvider.signIn(
-    //     email: _emailController.text.trim(),
-    //     password: _passwordController.text,
-    //   );
-
-    //   if (authProvider.isAuthenticated && mounted) {
-    //     Navigator.of(context).pushReplacementNamed(HomeScreen.routeName);
-    //   }
-    // }
-    Navigator.of(context).pushNamed(HomeScreen.routeName);
+      await authProvider.signin(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+      
+      if (authProvider.token != null && mounted) {
+        Navigator.of(context).pushReplacementNamed(HomeScreen.routeName);
+      }
+    }
   }
 
   @override
@@ -79,7 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // App name
                   Text(
-                    AppConstants.appName,
+                    "Secure Chat",
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
@@ -124,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Login button
                   CustomButton(
                     text: 'Login',
-                    isLoading: authProvider.status == AuthStatus.loading,
+                    isLoading: authProvider.signinLoading,
                     onPressed: _login,
                   ),
 
@@ -153,19 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
 
-                  // Error message
-                  if (authProvider.errorMessage.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16.0),
-                      child: Text(
-                        authProvider.errorMessage,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                          fontSize: 14,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
+                 
                 ],
               ),
             ),

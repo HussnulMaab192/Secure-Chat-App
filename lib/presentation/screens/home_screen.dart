@@ -1,9 +1,8 @@
+import 'package:chat_app_secure_programming/providers/auth_provider.dart';
+import 'package:chat_app_secure_programming/providers/chat_provider.dart';
+import 'package:chat_app_secure_programming/services/shared_pref_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
-import '../../core/constants/app_constants.dart';
-import '../providers/auth_provider.dart';
-import '../providers/message_provider.dart';
 import 'chat_screen.dart';
 import 'login_screen.dart';
 
@@ -18,11 +17,25 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  String _username = '';
+  String _email = '';
 
   @override
   void initState() {
     super.initState();
-    // Load any necessary data when the home screen initializes
+    _loadUserData();
+    // Initialize chat messages
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<ChatProvider>(context, listen: false).getMessages();
+    });
+  }
+
+  Future<void> _loadUserData() async {
+    final userData = await SharedPrefService.getUserData();
+    setState(() {
+      _username = userData['username'] ?? '';
+      _email = userData['email'] ?? '';
+    });
   }
 
   void _onItemTapped(int index) {
@@ -33,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _signOut() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.signOut();
+    await authProvider.signout(context);
 
     if (mounted) {
       Navigator.of(context).pushReplacementNamed(LoginScreen.routeName);
@@ -43,20 +56,94 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
-    final currentUser = authProvider.user;
+    final chatProvider = Provider.of<ChatProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppConstants.appName),
-        // actions: [
-        //   IconButton(
-        //     icon: const Icon(Icons.exit_to_app),
-        //     onPressed: _signOut,
-        //   ),
-        // ],
+        title: const Text("Secure Chat"),
       ),
       body: _selectedIndex == 0
-          ? _buildChatList()
+          ? Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Theme.of(context).primaryColor,
+                        Theme.of(context).primaryColor.withOpacity(0.8),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Theme.of(context).primaryColor.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => Navigator.of(context).pushNamed(ChatScreen.routeName),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.chat_bubble_outline,
+                                color: Colors.white,
+                                size: 30,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Global Chat Room',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Join the conversation with everyone',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.9),
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              color: Colors.white.withOpacity(0.7),
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // Expanded(
+                //   child: _buildChatList(),
+                // ),
+              ],
+            )
           : _buildProfileSection(),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
@@ -86,54 +173,72 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildChatList() {
+    final chatProvider = Provider.of<ChatProvider>(context);
+    
     return Column(
       children: [
-        // Padding(
-        //   padding: const EdgeInsets.all(16.0),
-        //   child: TextField(
-        //     decoration: InputDecoration(
-        //       hintText: 'Search chats...',
-        //       prefixIcon: const Icon(Icons.search),
-        //       border: OutlineInputBorder(
-        //         borderRadius: BorderRadius.circular(24),
-        //         borderSide: BorderSide.none,
-        //       ),
-        //       filled: true,
-        //       fillColor: Theme.of(context).colorScheme.surface,
-        //       contentPadding: const EdgeInsets.symmetric(
-        //         horizontal: 16,
-        //         vertical: 10,
-        //       ),
-        //     ),
-        //   ),
-        // ),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.all(8.0),
-            children: [
-              _buildChatItem(
-                'Global Chat',
-                'Join the conversation with everyone',
-                Icons.public,
-                () {
-                  Navigator.of(context).pushNamed(ChatScreen.routeName);
-                },
-              ),
-              const Divider(),
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    'More chat rooms coming soon!',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.secondary,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
+          child: chatProvider.getChatLoading
+              ? const Center(child: CircularProgressIndicator())
+              : StreamBuilder(
+                  stream: chatProvider.messagesStream,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return const Center(child: Text('Error loading messages'));
+                    }
+
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final messages = snapshot.data ?? [];
+                    
+                    if (messages.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.chat_bubble_outline,
+                              size: 64,
+                              color: Theme.of(context).primaryColor.withOpacity(0.5),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No messages yet',
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Start a conversation!',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context).textTheme.bodySmall?.color,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    
+                    return ListView.builder(
+                      padding: const EdgeInsets.all(8.0),
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        final message = messages[index];
+                        return _buildChatItem(
+                          message.username,
+                          message.message,
+                          Icons.person,
+                          () {
+                            Navigator.of(context).pushNamed(ChatScreen.routeName);
+                          },
+                        );
+                      },
+                    );
+                  },
                 ),
-              ),
-            ],
-          ),
         ),
       ],
     );
@@ -166,9 +271,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildProfileSection() {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final currentUser = authProvider.user;
-
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -177,9 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
             radius: 50,
             backgroundColor: Theme.of(context).primaryColor,
             child: Text(
-              currentUser?.username.isNotEmpty == true
-                  ? currentUser!.username[0].toUpperCase()
-                  : '?',
+              _username.isNotEmpty ? _username[0].toUpperCase() : '?',
               style: TextStyle(
                 fontSize: 40,
                 color: Theme.of(context).colorScheme.onPrimary,
@@ -189,12 +289,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            currentUser?.username ?? 'User',
+            _username,
             style: Theme.of(context).textTheme.headlineMedium,
           ),
           const SizedBox(height: 8),
           Text(
-            currentUser?.email ?? 'email@example.com',
+            _email,
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 32),
